@@ -1,17 +1,33 @@
 -- -----------------------------------------------------------------------
 --                         ** Something Global **                       --
 -- -----------------------------------------------------------------------
-  -- Uncomment this following line if you don't wish to see animations
+  -- Comment out this following line if you wish to see animations
 hs.window.animationDuration = 0
 grid = require "hs.grid"
 grid.setMargins('0, 0')
 
 -- Set screen watcher, in case you connect a new monitor, or unplug a monitor
 screens = {}
+screenArr = {}
 local screenwatcher = hs.screen.watcher.new(function()
   screens = hs.screen.allScreens()
 end)
 screenwatcher:start()
+
+-- Construct list of screens
+indexDiff = 0
+for index=1,#hs.screen.allScreens() do
+  local xIndex,yIndex = hs.screen.allScreens()[index]:position()
+  screenArr[xIndex] = hs.screen.allScreens()[index]
+end
+
+-- Find lowest screen index, save to indexDiff if negative
+hs.fnutils.each(screenArr, function(e)
+  local currentIndex = hs.fnutils.indexOf(screenArr, e)
+  if currentIndex < 0 and currentIndex < indexDiff then
+    indexDiff = currentIndex
+  end
+end)
 
 -- Set screen grid depending on resolution
   -- TODO: set grid according to pixels
@@ -89,6 +105,34 @@ local function rightHalf()
   local this = current:new()
   local cell = Cell(0.5 * this.screenGrid.w, 0, 0.5 * this.screenGrid.w, this.screenGrid.h)
   grid.set(this.window, cell, this.screen)
+end
+
+-- Windows-like cycle left
+local function cycleLeft()
+  local this = current:new()
+  -- Check if this window is on left or right
+  if this.windowGrid.x == 0 then
+    local currentIndex = hs.fnutils.indexOf(screenArr, current.scr)
+    local previousScreen = screenArr[(currentIndex - indexDiff - 1) % #hs.screen.allScreens() + indexDiff]
+    this.window:moveToScreen(previousScreen)
+    rightHalf()
+  else 
+    leftHalf()
+  end
+end
+
+-- Windows-like cycle right
+local function cycleRight()
+  local this = current:new()
+  -- Check if this window is on left or right
+  if this.windowGrid.x == 0 then
+    rightHalf()
+  else
+    local currentIndex = hs.fnutils.indexOf(screenArr, current.scr)
+    local nextScreen = screenArr[(currentIndex - indexDiff + 1) % #hs.screen.allScreens() + indexDiff]
+    this.window:moveToScreen(nextScreen)
+    leftHalf()
+  end
 end
 
 local function topHalf()
@@ -227,4 +271,10 @@ windowBind({"alt", "cmd", "shift"}, {
   right = leftToRight,    -- ⌥⌘⇧ + →
   up = topUp,             -- ⌥⌘⇧ + ↑
   down = topDown          -- ⌥⌘⇧ + ↓
+})
+
+-- * Windows-like cycle
+windowBind({"ctrl", "alt", "cmd"}, {
+  u = cycleLeft,          -- ⌃⌥⌘ + u
+  i = cycleRight          -- ⌃⌥⌘ + i
 })
